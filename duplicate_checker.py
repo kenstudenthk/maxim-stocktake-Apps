@@ -5,25 +5,34 @@ from io import BytesIO
 st.set_page_config(page_title="Stocktake 檢查工具", layout="wide")
 st.title("📦 Stocktake 檢查工具")
 
-# ---------- 側邊欄容器（先留空，稍後動態加入） ----------
-sidebar_holder = st.sidebar.empty()
+# 用 session_state 記住目前在哪個 Tab
+if "active_tab" not in st.session_state:
+    st.session_state.active_tab = "tab1"   # 預設第一頁
 
-# ---------- Tab 分頁 ----------
+# 建立 Tab，並在切換時同步 session_state
 tab1, tab2 = st.tabs(["🔍 重複 SerialNo / CMDB", "🚩 JG Outstanding"])
 
-# ===== Tab 1：重複檢查 =====
-with tab1:
-    # 只在 Tab1 開啟時把上傳元件掛到側邊欄
-    with st.sidebar:
-        f_stock = st.file_uploader("📁 上傳 Stocktake2.xlsx", type=["xlsx"])
+# --------------- 動態側邊欄 ---------------
+with st.sidebar:
+    if st.session_state.active_tab == "tab1":
+        f_stock = st.file_uploader("📤 上傳 Stocktake2.xlsx", type=["xlsx"], key="stock_tab1")
+        f_shops = None   # 讓 Tab2 的元件消失
+    else:
+        f_shops = st.file_uploader("📤 上傳 All3shops.xlsx", type=["xlsx"], key="shops_tab2")
+        f_stock = None   # 讓 Tab1 的元件消失
 
-    if f_stock is None:
+# --------------- Tab 1 ---------------
+with tab1:
+    # 記住目前 Tab
+    st.session_state.active_tab = "tab1"
+    if not f_stock:
         st.warning("請先在側邊欄上傳 Stocktake2.xlsx")
         st.stop()
 
     df = pd.read_excel(f_stock).drop_duplicates()
     df.columns = df.columns.str.strip()
 
+    # ===== 重複檢查邏輯 =====
     dup_serial = (
         df[df["SerialNo"].astype(str).str.contains(r"\d", na=False)]
         .dropna(subset=["SerialNo"])
@@ -48,30 +57,30 @@ with tab1:
         duplicate_df.to_excel(buf, index=False, engine="openpyxl")
         st.download_button("📥 下載 duplicate_item.xlsx", buf.getvalue(), "duplicate_item.xlsx")
 
-    st.info("📤 請上傳到 SharePoint：[🔗 前往資料夾](https://pccw0.sharepoint.com/:f:/r/sites/BonniesTeam/Shared%20Documents/General/Maxim%27s%20stock%20take/Do_not_open?csf=1&web=1&e=arYEyY)")
+    st.info("📤 上傳到 SharePoint：[🔗 資料夾](https://pccw0.sharepoint.com/:f:/r/sites/BonniesTeam/Shared%20Documents/General/Maxim%27s%20stock%20take/Do_not_open?csf=1&web=1&e=arYEyY)")
 
-# ===== Tab 2：JG Outstanding =====
+# --------------- Tab 2 ---------------
 with tab2:
-    # 只在 Tab2 開啟時把上傳元件掛到側邊欄
-    with st.sidebar:
-        f_shops = st.file_uploader("📁 上傳 All3shops.xlsx", type=["xlsx"])
-
-    if f_shops is None:
+    st.session_state.active_tab = "tab2"
+    if not f_shops:
         st.warning("請先在側邊欄上傳 All3shops.xlsx")
         st.stop()
 
     shops = pd.read_excel(f_shops)
     shops.columns = shops.columns.str.strip()
 
-    # 讀 Stocktake2.xlsx（兩個 Tab 共用同一個檔案，因此再讀一次）
-    if "f_stock" not in locals():
-        f_stock = st.file_uploader("📁 重新上傳 Stocktake2.xlsx", type=["xlsx"], key="tab2_stock")
-        if f_stock is None:
+    # 若還沒上傳 Stocktake2.xlsx，在 Tab2 再要求一次
+    if "f_stock_tab2" not in st.session_state:
+        f_stock_tab2 = st.file_uploader("📤 重新上傳 Stocktake2.xlsx", type=["xlsx"], key="f_stock_tab2")
+        if not f_stock_tab2:
             st.stop()
-        df = pd.read_excel(f_stock).drop_duplicates()
+        df = pd.read_excel(f_stock_tab2).drop_duplicates()
         df.columns = df.columns.str.strip()
+        st.session_state.f_stock_tab2 = f_stock_tab2
+    else:
+        df = pd.read_excel(st.session_state.f_stock_tab2).drop_duplicates()
 
-    # 比對邏輯
+    # ===== JG Outstanding 邏輯 =====
     JG = shops[shops["From JG"] == "Y"]
     JG["Serial No"] = JG["Serial No"].astype(str).str.strip()
     df["SerialNo"] = df["SerialNo"].astype(str).str.strip()
@@ -89,4 +98,4 @@ with tab2:
         outstanding.to_excel(buf2, index=False, engine="openpyxl")
         st.download_button("📥 下載 JG_outstanding.xlsx", buf2.getvalue(), "JG_outstanding.xlsx")
 
-    st.info("📤 請上傳到 SharePoint：[🔗 前往資料夾](https://pccw0.sharepoint.com/:f:/r/sites/BonniesTeam/Shared%20Documents/General/Maxim%27s%20stock%20take/Do_not_open?csf=1&web=1&e=arYEyY)")
+    st.info("📤 上傳到 SharePoint：[🔗 資料夾](https://pccw0.sharepoint.com/:f:/r/sites/BonniesTeam/Shared%20Documents/General/Maxim%27s%20stock%20take/Do_not_open?csf=1&web=1&e=arYEyY)")
