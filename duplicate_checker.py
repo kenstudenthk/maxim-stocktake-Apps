@@ -56,33 +56,37 @@ with tab1:
 with tab2:
     f_shops = st.file_uploader("📤 上傳 All3shops.xlsx", type=["xlsx"], key="shops_tab2")
     if f_shops is None:
-        st.warning("請在此處上傳 All3shops.xlsx")
         st.stop()
 
     shops = pd.read_excel(f_shops)
     shops.columns = shops.columns.str.strip()
 
-    # ---- 這裡就是你要的「找出 JG 未盤點項目」 ----
     jg = shops[shops["From JG"] == "Y"].copy()
     jg["Serial No"] = jg["Serial No"].astype(str).str.strip()
     df_stock["SerialNo"] = df_stock["SerialNo"].astype(str).str.strip()
 
-    # 找出在 Stocktake2 找不到的 JG 序號
+    # 1) 找出 JG 未盤點項目
     jg["found_in_stocktake"] = jg["Serial No"].isin(df_stock["SerialNo"])
-    outstanding = jg[
-        (~jg["found_in_stocktake"]) &   # 找不到
-        (jg["Stock Take"] == "Y")       # 且標記要盤點
+    outstanding = jg[(~jg["found_in_stocktake"]) & (jg["Stock Take"] == "Y")]
+
+    # 2) 新增：只保留 Verified / New Record 的盤點紀錄
+    records_for_jg = df_stock[
+        df_stock["Stock.Take.Status"].isin(["Verified", "New Record"])
     ]
 
-    st.subheader("JG 未盤點項目（在 Stocktake2 找不到）")
+    st.subheader("1️⃣ JG Outstanding（在 Stocktake2 找不到序號）")
     st.dataframe(outstanding)
-    if not outstanding.empty:
-        buf2 = BytesIO()
-        outstanding.to_excel(buf2, index=False, engine="openpyxl")
-        st.download_button("📥 下載 JG_outstanding.xlsx", buf2.getvalue(), "JG_outstanding.xlsx")
 
-# ---------- SharePoint 提示 ----------
-st.info(
-    "📤 請把兩份檔案上傳到 SharePoint："
-    "[🔗 前往資料夾](https://pccw0.sharepoint.com/:f:/r/sites/BonniesTeam/Shared%20Documents/General/Maxim%27s%20stock%20take/Do_not_open?csf=1&web=1&e=arYEyY)"
-)
+    st.subheader("2️⃣ JG 盤點紀錄（狀態 = Verified 或 New Record）")
+    st.dataframe(records_for_jg)
+
+    # 下載
+    if not outstanding.empty:
+        buf = BytesIO()
+        outstanding.to_excel(buf, index=False, engine="openpyxl")
+        st.download_button("📥 JG_outstanding.xlsx", buf.getvalue(), "JG_outstanding.xlsx")
+
+    if not records_for_jg.empty:
+        buf2 = BytesIO()
+        records_for_jg.to_excel(buf2, index=False, engine="openpyxl")
+        st.download_button("📥 JG_records_Verified_or_NewRecord.xlsx", buf2.getvalue(), "JG_records.xlsx")
