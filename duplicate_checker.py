@@ -52,7 +52,7 @@ if not duplicate_df.empty:
     st.download_button(
         label="📥 下載結果 Excel",
         data=buffer,
-        file_name="duplicates.xlsx",
+        file_name="duplicate items.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
 else:
@@ -61,6 +61,6 @@ else:
 # 6. Link for remind user upload the file to Sharepoint
 st.info(
     "📤 **下一步請手動上傳到 SharePoint**  \n"
-    "點擊下方連結，進入資料夾後直接 **覆蓋** 舊的 `duplicate item.xlsx` 即可：  \n"
+    "點擊下方連結，進入資料夾後直接 **覆蓋** 舊的 `duplicate items.xlsx` 即可：  \n"
     "[🔗 前往資料夾（SharePoint）](https://pccw0.sharepoint.com/:f:/r/sites/BonniesTeam/Shared%20Documents/General/Maxim%27s%20stock%20take/Do_not_open?csf=1&web=1&e=arYEyY)"
 )
